@@ -2,11 +2,9 @@
 
 import * as vscode from 'vscode';
 // import { TestViewDragAndDrop } from './testViewDragAndDrop';
-import { TestView } from './testView';
+import { EditorTree } from './EditorTree';
 
 export function activate(context: vscode.ExtensionContext) {
-	// const rootPath = (vscode.workspace.workspaceFolders && (vscode.workspace.workspaceFolders.length > 0))
-	// 	? vscode.workspace.workspaceFolders[0].uri.fsPath : undefined;
 
 	// // Samples of `window.registerTreeDataProvider`
 	// const nodeDependenciesProvider = new DepNodeProvider(rootPath);
@@ -17,10 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// vscode.commands.registerCommand('nodeDependencies.editEntry', (node: Dependency) => vscode.window.showInformationMessage(`Successfully called edit entry on ${node.label}.`));
 	// vscode.commands.registerCommand('nodeDependencies.deleteEntry', (node: Dependency) => vscode.window.showInformationMessage(`Successfully called delete entry on ${node.label}.`));
 
-	const groups =  vscode.window.tabGroups.groups;
-
-	// // Test View
-	new TestView(context);
+	new EditorTree(context);
 
 	// Drag and Drop proposed API sample
 	// This check is for older versions of VS Code that don't have the most up-to-date tree drag and drop API proposal.

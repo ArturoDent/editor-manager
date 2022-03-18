@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 
-export class TestView {
-
+export class EditorTree {
 
 	constructor(context: vscode.ExtensionContext) {
 
@@ -15,7 +14,6 @@ export class TestView {
 		});
 		// vscode.commands.registerCommand('testView.changeTitle', async () => {
 		vscode.commands.registerCommand('editor-manager.helloWorld', async () => {
-			// const groupTree = buildEditorGroupTree();
 			// const title = await vscode.window.showInputBox({ prompt: 'Type the new title for the Test View', placeHolder: view.title });
 			// if (title) {
 			// 	view.title = title;
@@ -26,30 +24,7 @@ export class TestView {
 
 // const groupTree = buildEditorGroupTree();
 
-// const tree = {
-// 	'a': {
-// 		'aa': {
-// 			'aaa': {
-// 				'aaaa': {
-// 					'aaaaa': {
-// 						'aaaaaa': {
-
-// 						}
-// 					}
-// 				}
-// 			}
-// 		},
-// 		'ab': {}
-// 	},
-// 	'b': {
-// 		'ba': {},
-// 		'bb': {}
-// 	}
-// };
 const nodes = {};
-
-	// let  defaultArgs = { restrictFind: "document", isRegex: false, cursorMoveSelect: "", matchWholeWord: false, matchCase: false };
-	// Object.assign(defaultArgs, args);
 
 // function buildEditorGroupTree() {
   
