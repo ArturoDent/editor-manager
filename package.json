@@ -2,6 +2,7 @@
 	"name": "editor-manager",
 	"displayName": "Editor Manager",
 	"description": "Save groups of editors",
+	"publisher": "ArturoDent",
 	"version": "0.0.1",
   "repository": {
 		"type": "git",
@@ -20,6 +21,7 @@
 		"treeViewReveal"
 	],
 	"activationEvents": [
+		"*",
     "onView:editor-groups",
     "onCommand:editor-manager.helloWorld"
 	],
@@ -38,8 +40,7 @@
     	"editorManager": [
 				{
 					"id": "editor-groups",
-					"name": "Groups",
-					"contextualTitle": "Groups"
+					"name": "Groups"
 				}
 			]
 		},
@@ -52,41 +53,31 @@
 				},
 				{
 					"command": "editor-groups.addEntry",
-					"when": "view == editor-groups"
+					"when": "view == editor-groups",
+					"group": "navigation"
 				}
 			],
 			"view/item/context": [
 				{
 					"command": "editor-groups.editEntry",
-					"when": "view == editor-groups && viewItem == editor",
-					"group": "inline"
+					"when": "view == editor-groups"
 				},
 				{
 					"command": "editor-groups.deleteEntry",
-					"when": "view == editor-groups && viewItem == editor"
+					"when": "view == editor-groups"
 				}
 			]
 		},
 		"commands": [
 			{
-				"command": "editor-manager.helloWorld",
-				"title": "Hello World"
-			},
-			{
 				"command": "editor-groups.refreshTree",
 				"title": "Refresh",
-				"icon": {
-					"light": "$(refresh)",
-					"dark": "resources/dark/refresh.svg"
-				}
+				"icon": "$(refresh)"
 			},
 			{
 				"command": "editor-groups.addEntry",
 				"title": "Add",
-				"icon": {
-					"light": "resources/light/add.svg",
-					"dark": "resources/dark/add.svg"
-				}
+				"icon": "$(zap)"
 			},
 			{
 				"command": "editor-groups.editEntry",

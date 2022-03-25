@@ -1,0 +1,169 @@
+import * as vscode from 'vscode';
+
+export class EditorTree {
+
+	constructor(context: vscode.ExtensionContext) {
+
+		const view = vscode.window.createTreeView('editor-groups', { treeDataProvider: editorGroupDataProvider(), showCollapseAll: true });
+		context.subscriptions.push(view);
+		vscode.commands.registerCommand('testView.reveal', async () => {
+			const key = await vscode.window.showInputBox({ placeHolder: 'Type the label of the item to reveal' });
+			if (key) {
+				// change below because keys are not strings
+				// await view.reveal({ key }, { focus: true, select: false, expand: true });
+				await view.reveal(getTreeElement(key), { focus: true, select: false, expand: true });
+			}
+		});
+		// vscode.commands.registerCommand('testView.changeTitle', async () => {
+		vscode.commands.registerCommand('editor-manager.helloWorld', async () => {
+			// const title = await vscode.window.showInputBox({ prompt: 'Type the new title for the Test View', placeHolder: view.title });
+			// if (title) {
+			// 	view.title = title;
+			// }
+		});
+	}
+}
+
+// const groupTree = buildEditorGroupTree();
+
+const nodes = {};
+
+// function buildEditorGroupTree() {
+  
+//   // let tree = {};
+//   let tree = [];
+//   // let thisGroup = {};
+//   let thisGroup = [];
+//   const groups =  vscode.window.tabGroups.groups;
+	
+//   groups.forEach((group) => {
+//     const groupName = `Group${group.viewColumn}`;
+//     // thisGroup[groupName] = {};
+//     tree[groupName] = [];
+    
+//     group.tabs.forEach(tab => { 
+//       return tree[groupName][`${tab.label}`] = `${tab.label}`;
+//     });
+//   });
+  
+//   // Object.assign(tree, thisGroup);
+//   return tree;
+// } 
+
+function editorGroupDataProvider(): vscode.TreeDataProvider<any> {
+
+	return {
+		getChildren: (element: any): any => {
+		return getChildren(element ? element : undefined);
+	},
+		getTreeItem: (element: (vscode.Tab|vscode.TabGroup)): vscode.TreeItem => {
+			const treeItem = getTreeItem(element);
+			// id must be unique across tree, so append the group's viewColumn to it.
+			// treeItem.id = element.key;
+			return treeItem;
+		},
+		// implement for reveal functionality
+		// getParent: ({ key }: any): any => {
+    //   const parentKey = key.substring(0, key.length - 1);
+    //   // if (parentKey) return new Key(parentKey);
+    //   // else return void 0;
+		// 	return parentKey ? new Key(parentKey) : void 0;
+		// }
+
+	};
+}
+
+function refresh()  {
+
+}
+
+function getChildren(key: vscode.TabGroup|undefined): (readonly vscode.TabGroup[] |  readonly vscode.Tab[]) {
+
+	const groups =  vscode.window.tabGroups.groups;
+	if (!key) {
+		// return Object.keys(groups);
+		return groups;
+	}
+
+	// return the key as well, so it can be used in the getNode and Key constructor
+
+
+const sorted = Object.values(key.tabs).sort(function(a, b) {
+  const labelA = a.label; // ignore upper and lowercase
+  const labelB = b.label; // ignore upper and lowercase
+  if (labelA < labelB) {
+    return -1;
+  }
+  if (labelA > labelB) {
+    return 1;
+  }
+  // names must be equal
+  return 0;
+});
+	// return key.tabs;
+	return sorted;  // works
+}
+
+function getTreeItem(key: any): vscode.TreeItem {
+
+	let tabCommand;
+	const tooltip = key.tabs ? new vscode.MarkdownString(`$(zap) Tooltip for Group-${key.viewColumn}`, true)
+									         : new vscode.MarkdownString(`$(zap) Tooltip for ${key.label}`, true);
+
+	// const kind = key.input;									 // working now
+
+	// $(open-preview) icon?  
+
+	// below works!!  except for previews
+	if (!key.tabs && key.input?.uri) tabCommand = { command: 'vscode.open', arguments: [key.input.uri, {viewColumn: key.parentGroup.viewColumn}] };
+
+	return {
+		label: key.tabs ? `Group-${key.viewColumn}` : key.label,
+		id: key.tabs ? `Group-${key.viewColumn}` : `${key?.label}-${key.parentGroup.viewColumn}`,  	// key.group.viewColumn
+		// correct initally, but need to subscribe to editor save events and call a refresh function
+		iconPath: key.isDirty ? new vscode.ThemeIcon("circle-filled", new vscode.ThemeColor("tab.activeModifiedBorder")) : undefined,
+		tooltip,
+		resourceUri: key.input?.uri ?? undefined,  // changing to key.kind.uri soon
+		collapsibleState: key.tabs ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None,
+		// command: key.tabs ? undefined : tabCommand
+		command: tabCommand
+	};
+}
+
+function getParentGroup(key: vscode.Tab): Number  {
+
+	const parent =  vscode.window.tabGroups.groups;
+	// will find the first in any group, not necessarily this tab's group
+	// it might be split and appear in 2+ groups
+	const thisGroup = parent.find(group => group.tabs.find(tab => tab.label === key.label));
+
+	return Math.random();
+}
+
+// returns a tabGroup or a Tab
+// make work for a string? for view.reveal?
+function getTreeElement(element: any): any {
+	let parent;
+	// let parent =  vscode.window.tabGroups.groups;
+
+	if (element.parentGroup) {
+		parent = element.parentGroup;
+		const thisTab = parent.tabs.find(tab => tab.label === element);
+		return { thisTab, groupColumn: parent.viewColumn };
+	}
+
+	parent =  vscode.window.tabGroups.groups;
+	let isGroup = parent.find(group => (group.viewColumn - 1) === Number(element));
+	if (isGroup) return parent[element];
+}
+
+// function getNode(key: ( vscode.TabGroup |  vscode.Tab)): { key: string } {
+// 	if (!nodes[key.label]) {
+// 		nodes[key] = new Key(key);
+// 	}
+// 	return nodes[key];
+// }
+
+// class Key {
+// 	constructor(readonly key: string) { }
+// }
