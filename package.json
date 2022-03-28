@@ -4,7 +4,7 @@
 	"description": "Save groups of editors",
 	"publisher": "ArturoDent",
 	"version": "0.0.1",
-  "repository": {
+	"repository": {
 		"type": "git",
 		"url": "https://github.com/ArturoDent/editor-manager"
 	},
@@ -15,21 +15,21 @@
 	"categories": [
 		"Other"
 	],
-  "keywords": [],
-  "enabledApiProposals": [
+	"keywords": [],
+	"enabledApiProposals": [
 		"tabs",
 		"treeViewReveal"
 	],
 	"activationEvents": [
 		"*",
-    "onView:editor-groups",
-    "onCommand:editor-manager.helloWorld"
+		"onView:editor-groups",
+		"onCommand:editor-manager.helloWorld"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
-    "viewsContainers": {
+		"viewsContainers": {
 			"activitybar": [
-      	{
+				{
 					"id": "editorManager",
 					"title": "Editor Manager",
 					"icon": "$(eye)"
@@ -37,7 +37,7 @@
 			]
 		},
 		"views": {
-    	"editorManager": [
+			"editorManager": [
 				{
 					"id": "editor-groups",
 					"name": "Groups"
@@ -97,10 +97,10 @@
 			}
 		]
 	},
-  "extensionKind": [
+	"extensionKind": [
 		"ui",
 		"workspace"
-	 ],
+	],
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",

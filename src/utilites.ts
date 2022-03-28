@@ -2,13 +2,11 @@ import * as vscode from 'vscode';
 import { Tab } from './editorManagerTree';
 
 
-export function getMatchingTreeItem(tab: vscode.Tab ): Tab { 
-
-	// const activeLabel = tab.label;
-	// const parentGroup = tab.group;
-	// const path = tab.kind.uri.path;
-
-	// console.log(tab);
-
+export async function getMatchingTreeItem(tab: vscode.Tab): Promise<Tab> {
 	return new Tab(tab);
 }
+
+// export async function realActiveTabs(): Promise<void> {
+// 	const groups = vscode.window.tabGroups.groups;
+
+// }
