@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
-import { Tab } from './editorManagerTree'
-import * as path from 'path';
+// import { TreeTab } from './editorManagerTree'
+// import * as path from 'path';
 
 // always put pinned tabs first?
 export function putPinnedTabsFirst(group: vscode.TabGroup): vscode.Tab[] { 
 
+	// and sort them (by label)? TODO
 	const sorted = Object.values(group.tabs).sort(function(a, b) {		
 		if (a.isPinned && !b.isPinned) return -1;
 		if (b.isPinned && !a.isPinned) return 1;

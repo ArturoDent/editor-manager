@@ -1,10 +1,15 @@
 import * as vscode from 'vscode';
-import { Tab } from './editorManagerTree';
+import { TreeTab } from './editorManagerTree';
 
 
-export async function getMatchingTreeItem(tab: vscode.Tab): Promise<Tab> {
-	return new Tab(tab);
+export async function getMatchingTreeItem(tab: vscode.Tab): Promise<TreeTab> {
+	if (tab?.label) return new TreeTab(tab);
 }
+
+// export function getMatchingTreeItem(tab: vscode.Tab): TreeTab {
+// 	// TODO do this without creating a new TreeTab, loop through and filter?
+// 	return new TreeTab(tab);
+// 	const activeGroup = tab.group;
 
 export async function getfocusGroupCommand(viewColumn: Number): Promise<string> {
 
