@@ -14,6 +14,7 @@ export function putPinnedTabsFirst(group: vscode.TabGroup): vscode.Tab[] {
 	return sorted;
 }
 
+
 // always put pinned tabs first?
 export function byLabelAlphabetically(group: vscode.TabGroup): vscode.Tab[] { 
 

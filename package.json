@@ -10,15 +10,12 @@
 	},
 	"license": "MIT",
 	"engines": {
-		"vscode": "^1.66.0"
+		"vscode": "^1.67.0"
 	},
 	"categories": [
 		"Other"
 	],
 	"keywords": [],
-	"enabledApiProposals": [
-		"treeViewReveal"
-	],
 	"activationEvents": [
 		"*",
 		"onView:editor-groups"
@@ -50,18 +47,18 @@
 					"group": "navigation"
 				},
 				{
-					"command": "editor-groups.addEntry",
+					"command": "editor-groups.addGroup",
 					"when": "view == editor-groups",
 					"group": "navigation"
 				}
 			],
 			"view/item/context": [
 				{
-					"command": "editor-groups.editEntry",
+					"command": "editor-groups.renameTab",
 					"when": "view == editor-groups"
 				},
 				{
-					"command": "editor-groups.deleteEntry",
+					"command": "editor-groups.closeTab",
 					"when": "view == editor-groups"
 				}
 			]
@@ -73,24 +70,24 @@
 				"icon": "$(refresh)"
 			},
 			{
-				"command": "editor-groups.addEntry",
-				"title": "Add a tab here",
+				"command": "editor-groups.addGroup",
+				"title": "Add a group here",
 				"icon": "$(zap)"
 			},
 			{
-				"command": "editor-groups.editEntry",
-				"title": "Edit this tab name",
+				"command": "editor-groups.renameTab",
+				"title": "Rename this file",
 				"icon": {
 					"light": "resources/light/edit.svg",
 					"dark": "resources/dark/edit.svg"
 				}
 			},
 			{
-				"command": "editor-groups.deleteEntry",
-				"title": "Delete this tab",
+				"command": "editor-groups.closeTab",
+				"title": "Close this file",
 				"icon": {
-					"light": "resources/light/delete.svg",
-					"dark": "resources/dark/delete.svg"
+					"light": "resources/light/close.svg",
+					"dark": "resources/dark/close.svg"
 				},
 				"enablement": "view == editor-groups"
 			}
@@ -112,7 +109,7 @@
 		"@types/glob": "^7.1.1",
 		"@types/mocha": "^7.0.2",
 		"@types/node": "^15.9.0",
-		"@types/vscode": "^1.66.0",
+		"@types/vscode": "^1.67.0",
 		"@typescript-eslint/eslint-plugin": "^5.19.0",
 		"@typescript-eslint/parser": "^5.19.0",
 		"eslint": "^6.8.0",
@@ -120,5 +117,8 @@
 		"mocha": "^7.1.2",
 		"typescript": "^4.6.3",
 		"vscode-test": "^1.3.0"
+	},
+	"dependencies": {
+		"ts-debounce": "^4.0.0"
 	}
 }

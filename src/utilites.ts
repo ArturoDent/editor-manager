@@ -2,6 +2,16 @@ import * as vscode from 'vscode';
 import { TreeTab } from './editorManagerTree';
 
 
+export async function getMarkdownFileURI(tab: vscode.Tab): Promise<vscode.Uri> {
+  
+  const previewLabel = tab.label.match(/\[?Preview\]?\s+(.*)/)[1];
+  if (previewLabel) {
+    const markdownTab = vscode.window.tabGroups.activeTabGroup.tabs.find(tab => tab.label === previewLabel);
+		if (markdownTab.input instanceof vscode.TabInputText) return markdownTab.input.uri;
+  }
+  else return undefined;
+}
+
 export async function getMatchingTreeItem(tab: vscode.Tab): Promise<TreeTab> {
 	if (tab?.label) return new TreeTab(tab);
 }
