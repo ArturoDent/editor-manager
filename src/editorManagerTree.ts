@@ -5,9 +5,9 @@ import * as utilities from './utilites';
 import { debounce } from "ts-debounce";
 
 type treeNodes = TreeTab | TreeGroup;
-
-
 export class EditorManager {
+
+	public nameManager: GroupNameManager;
 
 	public tabView: vscode.TreeView<treeNodes>;
 	public myTreeProvider: TabTreeDataProvider;
@@ -16,13 +16,28 @@ export class EditorManager {
 
 	constructor(context: vscode.ExtensionContext) {
 
-		this.myTreeProvider = new TabTreeDataProvider();
+		this.nameManager = new GroupNameManager();       // just to set up the array from storage
+		// this.nameManager.buildNameArray();
+		this.myTreeProvider = new TabTreeDataProvider(this.nameManager);
 		this.myTreeDragController = new TabTreeDragDropController(this);
-		this.tabView = vscode.window.createTreeView('editor-groups', { treeDataProvider: this.myTreeProvider, showCollapseAll: true, canSelectMany: true, 
-																																		dragAndDropController: this.myTreeDragController });
+		this.tabView = vscode.window.createTreeView('editor-groups', 
+			{ treeDataProvider: this.myTreeProvider, 		
+				showCollapseAll: true, 
+				canSelectMany: true, 
+				dragAndDropController: this.myTreeDragController
+			});
+
+			// this.tabView.badge = {tooltip:"my badge tooltip", value: vscode.window.tabGroups.all.length-5};
+			// this.tabView.badge = {value: 0, tooltip:''};
+
 		this.groupState = new GroupExpansionStateManager();
 
 		context.subscriptions.push(this.tabView);
+
+		// const checkBoxListener = this.tabView.onDidChangeCheckboxState(async event => {
+		// 	// event = {item: Array(n)}, which TreeItem's checkbox was clicked and its state after clicking:0/1
+		// 	console.log(event); 
+		// });
 
 		const viewExpand = this.tabView.onDidExpandElement(async event => {
 			if (event.element instanceof TreeGroup) this.groupState.setIsExpanded(event.element.group.viewColumn, true);
@@ -46,6 +61,8 @@ export class EditorManager {
 					}
 				}
 			}
+			// refresh needed due to https://github.com/microsoft/vscode/issues/121567 ?
+			// await this.myTreeProvider.refresh();
 		});
 		context.subscriptions.push(viewExpand);
 
@@ -62,18 +79,51 @@ export class EditorManager {
 		});
 		context.subscriptions.push(refreshCommand);
 
-		const closeTab = vscode.commands.registerCommand('editor-groups.closeTab', async (args) => {
-      await vscode.window.tabGroups.close(args.tab);
-      await this.myTreeProvider.refresh();
+		// --------------------  editor-groups.closeTab  -----------------------------------------------
+		const closeTab = vscode.commands.registerCommand('editor-groups.closeTab', async (...args) => {
+
+			// filter out TreeGroups (may also be selected, but clicked on a TreeTab close icon)
+			args[1] = args[1]?.filter(item => item instanceof TreeTab);
+
+			if (!args[1]) await vscode.window.tabGroups.close(args[0].tab);   // closing only one TreeTab
+			else {                                                            // closing multiple TreeTabs
+				await Promise.all(args[1].map(async (treeTab) => {
+	      	await vscode.window.tabGroups.close(treeTab.tab);
+				}));
+      	await this.myTreeProvider.refresh();
+			}
 		});
     context.subscriptions.push(closeTab);
+		// ---------------------------------------------------------------------------------------------
+
+
+		// --------------------  editor-groups.closeGroup  ---------------------------------------------
+		const closeGroup = vscode.commands.registerCommand('editor-groups.closeGroup', async (...args) => {
+
+			// filter out TreeTabs (may be from other groups and selected - ignore them since clicked on close Group icon)
+			args[1] = args[1]?.filter(item => item instanceof TreeGroup);
+
+			if (!args[1]) await vscode.window.tabGroups.close(args[0].group);  // closing only one TreeGroup
+			else {                                                             // closing multiple TreeGroups
+				await Promise.all(args[1].map(async (treeGroup) => {
+      		await vscode.window.tabGroups.close(treeGroup.group);
+				}));
+			}
+      await this.myTreeProvider.refresh();
+		});
+    context.subscriptions.push(closeGroup);
+		// ---------------------------------------------------------------------------------------------
+
     
+		// --------------------  editor-groups.renameTab  ----------------------------------------------
     const renameTab = vscode.commands.registerCommand('editor-groups.renameTab', async (args) => {
 
-      const oldName = args.tab.input.uri.fsPath;
-      
+      const tabInfo = utilities.getTabInputUri(args.tab);
+      const oldName = tabInfo?.uri.fsPath || tabInfo?.original.fsPath;
+			if (!oldName) return;  // can't rename
+
       let inputBoxOptions = {
-        ignoreFocusOut: true,
+        ignoreFocusOut: false,
         value: oldName,
         prompt: "Make changes to the fileName above.  "
       };
@@ -86,8 +136,30 @@ export class EditorManager {
           await this.myTreeProvider.refresh();
         });
     });
-      
 		context.subscriptions.push(renameTab);
+		// ---------------------------------------------------------------------------------------------
+
+
+		// --------------------  editor-groups.renameGroup  --------------------------------------------
+		const renameGroup = vscode.commands.registerCommand('editor-groups.renameGroup', async (args) => {
+      const oldName = args.label;
+      let inputBoxOptions = {
+        ignoreFocusOut: false,
+        value: oldName,
+        prompt: "Change the name of the selected group."
+      };
+      
+      await vscode.window.showInputBox(inputBoxOptions)
+        .then(async newName => {
+          if (!newName) return;
+					// how to change the name of previous group
+					await this.nameManager.changeName(newName, oldName);
+          await this.myTreeProvider.refresh();
+        });
+    });
+		context.subscriptions.push(renameGroup);
+		// ---------------------------------------------------------------------------------------------
+	
 
 	const changeTabs = vscode.window.tabGroups.onDidChangeTabs(
 		debounce( async ({opened, closed, changed}) => {
@@ -112,9 +184,8 @@ export class EditorManager {
 		},
 		1000, {isImmediate: true})
 	);
-	
 	context.subscriptions.push(changeTabs);
-	// const devouncedChangeTabs = debounce(changeTabs, 1000, {isImmediate: true});
+	// const debouncedChangeTabs = debounce(changeTabs, 1000, {isImmediate: true});
 
 
 	const changeTabGroups = vscode.window.tabGroups.onDidChangeTabGroups(
@@ -129,15 +200,13 @@ export class EditorManager {
 					console.log("view catch onDidChangeTabGroups");
 				}
 			}
-			// is the below needed?
-			// myTreeProvider.refresh();
 		},
 		1000, {isImmediate: true})
 	);
 	context.subscriptions.push(changeTabGroups);
 
 
-	// fires after onDidExpandElement
+	// fires after onDidExpandElement (twice for group and tab) / onDidCollapseElement (once for group)
 	const viewSelection = this.tabView.onDidChangeSelection(
 		debounce( async event => {
 			if (event.selection[0] instanceof TreeTab) {
@@ -156,7 +225,6 @@ export class EditorManager {
 					const sourceURI = await utilities.getMarkdownFileURI(tab);
 					await vscode.commands.executeCommand('markdown.showPreview', sourceURI);
 				}
-				await this.myTreeProvider.refresh();
 			}
 		},
 		1000, {isImmediate: true})
@@ -168,10 +236,12 @@ export class EditorManager {
 
 export class TabTreeDataProvider implements vscode.TreeDataProvider<treeNodes> {
 
+	nameManager: GroupNameManager;
+
 	private _onDidChangeTreeData: vscode.EventEmitter<treeNodes | undefined | null | void> = new vscode.EventEmitter<treeNodes | undefined | null | void>();
 	readonly onDidChangeTreeData: vscode.Event<treeNodes | undefined | null | void> = this._onDidChangeTreeData.event;
 
-	constructor() {}
+	constructor(nameManager: GroupNameManager) { this.nameManager = nameManager; }
 
 	async refresh(): Promise<void> {
 		this._onDidChangeTreeData.fire();
@@ -186,7 +256,8 @@ export class TabTreeDataProvider implements vscode.TreeDataProvider<treeNodes> {
 		const groups = vscode.window.tabGroups.all;
 
 		if (!key) {
-			return groups.map(group => new TreeGroup(group));
+			let index = 0;
+			return groups.map(group => new TreeGroup(this.nameManager.getName(index++), group));
 		}
 
 		// works well, sorted and pins go first
@@ -201,46 +272,56 @@ export class TabTreeDataProvider implements vscode.TreeDataProvider<treeNodes> {
 
 	getParent(key: TreeTab): TreeGroup | undefined {
 		if (key instanceof TreeGroup) return undefined;
-		return new TreeGroup(key.tab.group);   // (key instanceof Tab)
+		return new TreeGroup(this.nameManager.getName(key.tab.group.viewColumn), key.tab.group);   // (key instanceof Tab)
 	}
 }
 
 
 export class TreeGroup extends vscode.TreeItem {
 
-	constructor( public readonly group: vscode.TabGroup	) {
-		super(`Group-${group.viewColumn}`, vscode.TreeItemCollapsibleState.Collapsed);
+	constructor( public label: string, public readonly group: vscode.TabGroup	) {
+
+		super(label, vscode.TreeItemCollapsibleState.Expanded);
 
 		this.id = String(group.viewColumn);
-		this.tooltip = new vscode.MarkdownString(`Group-${group.viewColumn}`, true);
+		this.tooltip = new vscode.MarkdownString(`viewcolumn = ${group.viewColumn}`, true);
 	}
 	contextValue = 'TreeGroup';
 }
 
 
 export class TreeTab extends vscode.TreeItem {
+// export class TreeTab extends vscode.TreeItem2 {
 
 	constructor( public readonly tab: vscode.Tab, public index: number = 0 ) {
 		super(tab.label, vscode.TreeItemCollapsibleState.None);
 
-		// this.index = tab.group.tabs.findIndex(groupTab => groupTab === tab);
 		this.index = tab.group.tabs.findIndex(groupTab => groupTab === tab);
 
 		// id's must be unique within whole tree
 		this.id = `${tab?.label}-${tab.group.viewColumn}`;
 
-		this.tooltip = new vscode.MarkdownString(`${tab.label}`, true);
+		// this.tooltip = new vscode.MarkdownString(`${tab.label}`, true);
+		// TODO : handle other tab kinds
+		if (tab.input instanceof vscode.TabInputText)
+			this.tooltip = new vscode.MarkdownString(`${tab.input.uri.fsPath}`, true);
 
 		if (tab.isPinned && tab.isDirty) this.iconPath = new vscode.ThemeIcon("pinned-dirty", new vscode.ThemeColor("tab.activeModifiedBorder"));
 		else if (tab.isPinned) this.iconPath = new vscode.ThemeIcon("pinned", new vscode.ThemeColor("tab.activeModifiedBorder"));
-		// else if (tab.isPinned) this.iconPath = vscode.ThemeIcon.Folder;
     else if (tab.isDirty) this.iconPath = new vscode.ThemeIcon("close-dirty", new vscode.ThemeColor("tab.activeModifiedBorder"));
     
     // but check group active status, just to set ThemeColor
-    else if (tab.isActive && tab.group.isActive) this.iconPath = new vscode.ThemeIcon("arrow-right", new vscode.ThemeColor("tab.activeBackground"));
-    else if (tab.isActive) this.iconPath = new vscode.ThemeIcon("arrow-right", new vscode.ThemeColor("tab.unfocusedActiveBackground"));
-    
-    // isPreview?
+    else if (tab.isActive && tab.group.isActive) {
+			this.iconPath = new vscode.ThemeIcon("arrow-small-right", new vscode.ThemeColor("tab.activeBackground"));
+			// this.iconPath = new vscode.ThemeIcon("arrow-small-right", new vscode.ThemeColor("charts.red"));  // this works
+			// this.checkboxState = vscode.TreeItemCheckboxState.Checked;
+			// this.checkboxState = {state: vscode.TreeItemCheckboxState.Checked, tooltip: "my nifty checkbox tooltip"};
+	}
+
+		else if (tab.isActive) {
+			this.iconPath = new vscode.ThemeIcon("arrow-small-right", new vscode.ThemeColor("tab.unfocusedActiveBackground"));
+		}
+    // isPreview?  show in italics?
 	}
 	contextValue = 'TreeTab';
 }
@@ -256,14 +337,49 @@ export class GroupExpansionStateManager {
 	getIsExpanded(groupColumn: number): boolean {
 		return this.isExpanded[groupColumn];
 	};
+}
 
-	// TODO: implement
-	removeGroup(groupColumn: number): void {
-		return;
+export class GroupNameManager {
+
+	// to be loaded from storage or from tabGroups.all.length if no storage
+	private nameArray: Array<string> = [];
+
+	constructor() {
+		this.buildNameArray();
 	};
 
-	// TODO: implement
-	addGroup(groupColumn: number, expansionState: boolean): void {
-		return;
-	};
+	private buildNameArray() {
+		this.nameArray.length = vscode.window.tabGroups.all.length;
+		this.nameArray.fill("Group");
+		// default if no storage 'Group-1', etc.
+		this.nameArray = this.nameArray.map((element, index) => `Group-${index+1}`);
+	}
+
+	public getName(index:number): string {
+		if (index > this.nameArray.length - 1) {
+			this.addName(`Group-${index+1}`, index);
+		}
+		return this.nameArray[index];
+	}
+
+	// for new groups, default 'Group-n'
+	public async addName(newName: string, position:number = this.nameArray.length) {
+		this.nameArray.splice(position, 0, newName);
+	}
+
+	// default position is the end of the array, for new group rename
+	public async setNewName(newName: string, oldName:string, position:number = this.nameArray.length) {
+		this.nameArray.splice(position, 0, newName);
+	}
+
+	public async changeName(newName: string, oldName:string, position:number = 0) {
+		const newPosition = this.nameArray.findIndex(name => name === oldName);
+		this.nameArray.splice(newPosition, 1, newName);
+	}
+
+	public async removeName(indexToRemove:number, nameToRemove?:string) {
+		if (nameToRemove)
+			this.nameArray = this.nameArray.filter(name => name !== nameToRemove);
+		else this.nameArray.splice(indexToRemove, 1);
+	}
 }

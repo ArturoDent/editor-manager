@@ -10,7 +10,7 @@
 	},
 	"license": "MIT",
 	"engines": {
-		"vscode": "^1.67.0"
+		"vscode": "^1.72.0"
 	},
 	"categories": [
 		"Other"
@@ -35,7 +35,9 @@
 			"editorManager": [
 				{
 					"id": "editor-groups",
-					"name": "Groups"
+					"name": "Groups",
+					"size": 1,
+					"visibility": "visible"
 				}
 			]
 		},
@@ -55,24 +57,42 @@
 			"view/item/context": [
 				{
 					"command": "editor-groups.renameTab",
-					"when": "view == editor-groups"
+					"when": "viewItem == TreeTab",
+					"group": "inline@1"
 				},
 				{
 					"command": "editor-groups.closeTab",
-					"when": "view == editor-groups"
+					"when": "viewItem == TreeTab",
+					"group": "inline@2"
+				},
+				{
+					"command": "editor-groups.renameGroup",
+					"when": "viewItem == TreeGroup",
+					"group": "inline@1"
+				},
+				{
+					"command": "editor-groups.closeGroup",
+					"when": "viewItem == TreeGroup",
+					"group": "inline@2"
 				}
 			]
 		},
 		"commands": [
 			{
 				"command": "editor-groups.refreshTree",
-				"title": "Refresh Editor Groups",
-				"icon": "$(refresh)"
+				"title": "Refresh groups",
+				"icon": {
+					"light": "resources/light/refresh.svg",
+					"dark": "resources/dark/refresh.svg"
+				}
 			},
 			{
 				"command": "editor-groups.addGroup",
-				"title": "Add a group here",
-				"icon": "$(zap)"
+				"title": "Add a group",
+				"icon": {
+					"light": "resources/light/add.svg",
+					"dark": "resources/dark/add.svg"
+				}
 			},
 			{
 				"command": "editor-groups.renameTab",
@@ -88,8 +108,23 @@
 				"icon": {
 					"light": "resources/light/close.svg",
 					"dark": "resources/dark/close.svg"
-				},
-				"enablement": "view == editor-groups"
+				}
+			},
+			{
+				"command": "editor-groups.renameGroup",
+				"title": "Rename this group",
+				"icon": {
+					"light": "resources/light/edit.svg",
+					"dark": "resources/dark/edit.svg"
+				}
+			},
+			{
+				"command": "editor-groups.closeGroup",
+				"title": "Close this group",
+				"icon": {
+					"light": "resources/light/close.svg",
+					"dark": "resources/dark/close.svg"
+				}
 			}
 		]
 	},

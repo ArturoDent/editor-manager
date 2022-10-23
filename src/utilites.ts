@@ -1,6 +1,34 @@
 import * as vscode from 'vscode';
 import { TreeTab } from './editorManagerTree';
 
+type tabInput = {
+	uri?: vscode.Uri,
+	original?: vscode.Uri,
+  modified?: vscode.Uri,
+  notebookType?: string,
+  viewType?: string,
+ 	unknown?: boolean,
+	terminal?: boolean
+};
+
+export function getTabInputUri(tab: vscode.Tab): tabInput {
+
+	if (tab.input instanceof vscode.TabInputText) return { uri: tab.input.uri };  // or {uri: tab.input.uri} ?
+  else if (tab.input instanceof vscode.TabInputWebview) return { viewType: tab.input.viewType };
+	else if (tab.input instanceof vscode.TabInputNotebook) 
+		return { uri: tab.input.uri, notebookType: tab.input.notebookType };
+	else if (tab.input instanceof vscode.TabInputCustom)
+		return { uri: tab.input.uri, viewType: tab.input.viewType };
+	else if (tab.input instanceof vscode.TabInputTextDiff) 
+		return { original: tab.input.original, modified: tab.input.modified };
+	else if (tab.input instanceof vscode.TabInputNotebookDiff)
+		return { original: tab.input.original, modified: tab.input.modified, notebookType: tab.input.notebookType };
+
+		// The tab represents a terminal in the editor area.
+	else if (tab.input instanceof vscode.TabInputTerminal) return { terminal: true };
+
+	else return { unknown: true };  // for unknown
+}
 
 export async function getMarkdownFileURI(tab: vscode.Tab): Promise<vscode.Uri> {
   
@@ -62,24 +90,25 @@ export function buidTabKindCommand(tab: vscode.Tab): vscode.Command {
 
 	tabCommand.title = "";
 
-	// if (tab.kind instanceof vscode.TabKindText) {
+	
+	// if (tab.Input instanceof vscode.TabKInputText) {
 	// 	// might have to get and focus editorGroup first
 	// 	// const index = 12;
 	// 	// tabCommand.command = 'workbench.action.openEditorAtIndex';
 	// 	// tabCommand.arguments = [index];
 
 	// 	tabCommand.command = 'vscode.open';
-	// 	tabCommand.arguments = [tab.kind?.uri, { viewColumn: tab.group.viewColumn }];
+	// 	tabCommand.arguments = [tab.Input?.uri, { viewColumn: tab.group.viewColumn }];
 	// }
 
 	// // e.g., markdown preview
-	// else if (tab.kind instanceof vscode.TabKindWebview) {
+	// else if (tab.Input instanceof vscode.TabInputWebview) {
 	// 	// viewType = "mainThreadWebview-markdown.preview"
 	// 	// debugger;
 	// }
 
 	// // label = "bash"
-	// else if (tab.kind instanceof vscode.TabKindTerminal) {
+	// else if (tab.Input instanceof vscode.TabInputTerminal) {
 	// 	// tabCommand.command = 'workbench.action.createTerminalEditor';
 
 	// 	// what does the below command do?
@@ -91,15 +120,15 @@ export function buidTabKindCommand(tab: vscode.Tab): vscode.Command {
 	// }
 
 	// // 
-	// else if (tab.kind instanceof vscode.TabKindTextDiff) {
+	// else if (tab.Input instanceof vscode.TabInputTextDiff) {
 	// 	// readonly original: Uri;
 	// 	// readonly modified: Uri;
 	// 	// debugger;
 	// 	tabCommand.command = '';
-	// 	// tabCommand.arguments = [[tab.kind?.uri, { viewColumn: tab.group.viewColumn }]];
+	// 	// tabCommand.arguments = [[tab.Input?.uri, { viewColumn: tab.group.viewColumn }]];
 	// }
 
-	// else if (tab.kind === undefined) {
+	// else if (tab.Input === undefined) {  // unknown?
 
 	// 	if (tab.label === "Keyboard Shortcuts") tabCommand.command = 'workbench.action.openGlobalKeybindings';
 	// 	else if (tab.label === "Settings") tabCommand.command = 'workbench.action.openSettings2';

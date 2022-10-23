@@ -1,18 +1,19 @@
 import * as vscode from 'vscode';
-import { EditorManager, TabTreeDataProvider, TreeTab, TreeGroup } from './editorManagerTree';
+import { EditorManager, TabTreeDataProvider, TreeTab, TreeGroup, GroupNameManager } from './editorManagerTree';
 import * as utilities from './utilites';
 
 type treeNodes = TreeTab | TreeGroup;
 
+// add fields for other tab types TODO
 type droppedItem = {
   source: "TreeTab" | "TreeGroup",
+	sourceViewColumn: number,
+  sourceIndex?: number,
   tabLabel?: string,
-  tabUri?: string,
+  tabUri?: vscode.Uri,
   tabActive?: boolean,
   tabActiveIndex?: number,
-  tabPreview?: boolean,
-  sourceViewColumn: number,
-  sourceIndex?: number  
+  tabPreview?: boolean  
 };
 
 
@@ -20,10 +21,12 @@ export class TabTreeDragDropController implements vscode.TreeDragAndDropControll
   
   private editorManager: EditorManager;
 	private tabTreeDataProvider: TabTreeDataProvider;
+	private groupNameManager: GroupNameManager;
   
   constructor(editorManager: EditorManager) {
     this.editorManager = editorManager;
 		this.tabTreeDataProvider = this.editorManager.myTreeProvider;
+		this.groupNameManager = this.editorManager.nameManager;
   }
   
 	dropMimeTypes = ['application/vnd.code.tree.editor-groups', 'text/uri-list', 'text/plain'];
@@ -56,40 +59,6 @@ export class TabTreeDragDropController implements vscode.TreeDragAndDropControll
 			}
 		});
 
-
-		// if (source.every(tab => tab instanceof TreeTab)) {
-			
-		// 	dragValue = source.map(treeTab => {
-		// 		if (treeTab instanceof TreeTab) {
-
-		// 			// TODO for different kinbd.input's
-		// 			let uri: vscode.Uri;
-		// 			if (treeTab.tab.input instanceof vscode.TabInputText) uri = treeTab.tab.input.uri;
-
-		// 			return { source: "TreeTab", tabLabel: treeTab.label, tabUri: uri, tabActive: treeTab.tab.isActive, sourceViewColumn: treeTab.tab.group.viewColumn, sourceIndex: treeTab.index };
-		// 		}
-		// 	});
-		// }
-
-		// else if (source.every(group => group instanceof TreeGroup)) {
-		
-		// 	dragValue = source.map(treeGroup => {
-
-		// 		if (treeGroup instanceof TreeGroup) {         // type guarding just for ts error
-		// 			return treeGroup.group.tabs.map(tab => {
-		// 				let sourceIndex = tab.group.tabs.findIndex(groupTab => groupTab === tab);
-		// 				// TODO
-		// 				let uri: vscode.Uri;
-		// 				if (tab.input instanceof vscode.TabInputText) uri = tab.input.uri;
-		// 				// else uri = undefined??
-
-		// 				return { source: "TreeGroup", tabLabel: tab.label, tabUri: uri, tabActive: tab.isActive, sourceViewColumn: Number(treeGroup.id), sourceIndex: sourceIndex };
-		// 			});
-		// 		}
-		// 	});
-		// 	dragValue = dragValue.flat();
-		// }
-
 		treeDataTransfer.set('application/vnd.code.tree.editor-groups', new vscode.DataTransferItem(dragValue));
 	}
 
@@ -111,23 +80,10 @@ export class TabTreeDragDropController implements vscode.TreeDragAndDropControll
 		else droppedTreeNodes = droppedTreeNodesDataTransferItem.value;
 
 		let targetViewColumn: number;
-
 		if (target instanceof TreeTab) targetViewColumn = target.tab.group.viewColumn;
-
-		// else if (target instanceof TreeGroup) {
-		// 	if (droppedTreeNodes.some(dragItem => dragItem.source === "TreeGroup")) {
-		// 		// must do this for each dropped item / move below
-		// 		if (target.group.viewColumn > droppedTreeNodes[0].sourceViewColumn) 
-		// 			targetViewColumn = vscode.window.tabGroups.all.length;
-		// 	}
-		//  	 else targetViewColumn = target.group.viewColumn;
-		// }
-
+		else if (target instanceof TreeGroup)  targetViewColumn = target.group.viewColumn;
 		// target === undefined
-		else if (!target) {
-			// if (droppedTreeNodes.some(dragItem => dragItem.source === "TreeGroup")) targetViewColumn = vscode.window.tabGroups.all.length;
-		 	 targetViewColumn = vscode.window.tabGroups.all.length + 1;
-		}
+		else if (!target) targetViewColumn = vscode.window.tabGroups.all.length + 1;
 	
 		let targetIndex: number;
 		// if drop on a TreeTab, put in front of it
@@ -136,74 +92,55 @@ export class TabTreeDragDropController implements vscode.TreeDragAndDropControll
 		else if (target instanceof TreeGroup) targetIndex = target.group.tabs.length; 
 		else if (!target) targetIndex = 0;
 
-		// let moveTabOutGroupArgs: {to: "position", by: "group", value: number};
-		// let moveTabInGroupArgs:  {to: "position", by: "tab",   value: number};
-
-		const activeTabMap = new Map();
+		let activeTabs: Array<vscode.Tab>;
+		// TODO if active group closed set activeGroupColumn to previous
     const activeGroupColumn: number = vscode.window.tabGroups.all.find(group => group.isActive).viewColumn;
     
-		vscode.window.tabGroups.all.map (tabGroup => tabGroup.tabs.map(tab => {
-			// don't add an active tab that moved?
-			// use dropped[n].sourceIndex here
-      if (tab.input instanceof vscode.TabInputText && tab.isActive && !droppedTreeNodes?.find(item => {
-				if (tab.input instanceof vscode.TabInputText) tab.input.uri.toString() === item.tabUri;
-			}))
-        activeTabMap.set(tabGroup.viewColumn, tab);
+		let allActiveTabs = vscode.window.tabGroups.all.flatMap(tabGroup => tabGroup.tabs.filter(tab => tab.isActive ));
+		activeTabs = allActiveTabs.filter(tab => !droppedTreeNodes?.find(node => {
+			// return node.tabActive && node.tabUri === tab.input.uri;
+			return (tab.input instanceof vscode.TabInputText && node.tabActive && node.tabUri === tab.input.uri);
 		}));
-    
-		const activeTab = vscode.window.tabGroups.all[0].activeTab;
+		
+		
+		for await (const item of droppedTreeNodes) {
 
-		droppedTreeNodes.map(async (item: droppedItem) => {
-
-			if (target instanceof TreeTab) targetViewColumn = target.tab.group.viewColumn;
-
-			// else if (target instanceof TreeGroup) {
-			// 	if (droppedTreeNodes.some(dragItem => dragItem.source === "TreeGroup")) {
-			// 		// must do this for each dropped item / move below
-			// 		if (target.group.viewColumn > item.sourceViewColumn) 
-			// 			targetViewColumn = vscode.window.tabGroups.all.length;
-			// 	}
-			// 		else targetViewColumn = target.group.viewColumn;
-			// }
-	
-			// target === undefined
-			else if (!target) {
-				// if (droppedTreeNodes.some(dragItem => dragItem.source === "TreeGroup")) targetViewColumn = vscode.window.tabGroups.all.length;
-				targetViewColumn = vscode.window.tabGroups.all.length + 1;
+			if (item.source === "TreeTab") {
+        await moveTab(item, targetViewColumn, targetIndex++);
 			}
 
-			// const activeTab = vscode.window.tabGroups.all[targetViewColumn - 1].activeTab;
-				
-			if (item.source = "TreeTab") {
-        await moveTab(item, targetViewColumn, targetIndex++).then(async onfulfilled => {
-					const index = vscode.window.tabGroups.all[targetViewColumn - 1].tabs.findIndex(tab => tab.label === activeTab.label);
-					// make this thenable?
-					await vscode.commands.executeCommand('workbench.action.openEditorAtIndex', index);
-					// .then(async onfulfilled => {
+			else if (item.source === "TreeGroup") {
+				const groupIndex = item.sourceViewColumn - 1;
+				const tabsInGroup = vscode.window.tabGroups.all[groupIndex].tabs;
 
-					// 	await this.tabTreeDataProvider.refresh();
-					// 	// await this.editorManager.tabView.reveal(new TreeTab(activeTab));
-					// });
+				for (const tab of tabsInGroup) {
+					const sourceIndex = tab.group.tabs.findIndex(groupTab => groupTab === tab);
+					// handle other tab types here? TODO
+					let uri: vscode.Uri;
+					if (tab.input instanceof vscode.TabInputText) uri = tab.input.uri;
+					const droppedTab: droppedItem = {
+						source: "TreeTab", tabLabel: tab.label, tabUri: uri, tabActive: tab.isActive,
+						tabPreview: tab.isPreview, sourceViewColumn: tab.group.viewColumn, sourceIndex
+					};
+					await moveTab(droppedTab, targetViewColumn, targetIndex++);
+				}
+				// is this necessary?  make own function
+				const groupToClose = vscode.window.tabGroups.all[item.sourceViewColumn - 1];
+				await vscode.window.tabGroups.close(groupToClose, false);
 
-    			await this.tabTreeDataProvider.refresh();
-					// await this.editorManager.tabView.reveal(new TreeTab(activeTab));
-				});
+				await this.groupNameManager.removeName(item.sourceViewColumn - 1);
 			}
-
-		});
-
-		// const index = vscode.window.tabGroups.all[targetViewColumn - 1].tabs.findIndex(tab => tab.label === activeTab.label);
-		// // make this thenable?
-		// await vscode.commands.executeCommand('workbench.action.openEditorAtIndex', index);
-
-		// queueMicrotask(this.tabTreeDataProvider.refresh());   // does this help? 
-    // this.tabTreeDataProvider.refresh();
-
-    // this.editorManager.enableTabAndViewWatchers();
+		};
+		// restore active tabs here 
+		await restoreActiveTabs(activeTabs);
+		// restore active group
+		await restoreActiveGroup(activeGroupColumn);
+		await this.tabTreeDataProvider.refresh();
 	}
+	
 }
 
-async function moveTab(item, targetViewColumn: number, targetIndex: number): Promise<void> {
+async function moveTab(item: any, targetViewColumn: number, targetIndex: number): Promise<void> {
 
   // if a markdown preview, for example
   if (!item.tabUri) {
@@ -219,11 +156,18 @@ async function moveTab(item, targetViewColumn: number, targetIndex: number): Pro
   
   else {
 		const openOptions = { preserveFocus: false, preview: item.tabPreview, viewColumn: targetViewColumn };
-		await vscode.commands.executeCommand('vscode.open', item.tabUri, openOptions);
+		await vscode.commands.executeCommand('vscode.open', item.tabUri, openOptions);  // this is failing silently
+
+		if (item.sourceViewColumn !== targetViewColumn) {
+			const moveTabBetweenGroupArgs = {to: "position", by: "group", value: targetViewColumn};  // 'value' is 1-based
+			await vscode.commands.executeCommand('moveActiveEditor', moveTabBetweenGroupArgs);
+		}
 		
 		const moveTabInGroupArgs = {to: "position", by: "tab", value: targetIndex + 1};  // 'value' is 1-based
 		await vscode.commands.executeCommand('moveActiveEditor', moveTabInGroupArgs);
 
+		// if not moving within same group
+		// if last tab in group?
 		if (item.sourceViewColumn !== targetViewColumn) {
 			const sourceGroup = vscode.window.tabGroups.all[item.sourceViewColumn - 1]; // 'all' array is 0-based
 			const thisTab = sourceGroup.tabs[item.sourceIndex];
@@ -234,19 +178,25 @@ async function moveTab(item, targetViewColumn: number, targetIndex: number): Pro
   }
 }
 
-		// // TODO restore active group and all active tabs in each group here
-		// activeTabMap.forEach(async (value: vscode.Tab, key: number) => {
-		// 	// const focusGroupCommand = await utilities.getfocusGroupCommand(activeGroupColumn);
-		// 	// const focusGroupCommand = await utilities.getfocusGroupCommand(key);
-		// 	// await vscode.commands.executeCommand(focusGroupCommand);
 
-		// 	// await vscode.commands.executeCommand('workbench.action.openEditorAtIndex', [value.tabIndex]);
-		// 	// let showOptions: vscode.TextDocumentShowOptions =  { viewColumn: key, preserveFocus: false, preview: value.isPreview };
-		// 	// await vscode.window.showTextDocument(value.input?.uri, showOptions);
-      
-    //     const openOptions = { preserveFocus: true, preview: value.isPreview, viewColumn: key};
-    //     await vscode.commands.executeCommand('vscode.open', value.input.uri, openOptions);
-		// });
+async function restoreActiveTabs(activeTabs: Array<vscode.Tab>):Promise<void>  {
 
-		// const focusGroupCommand = await utilities.getfocusGroupCommand(activeGroupColumn);
-		// await vscode.commands.executeCommand(focusGroupCommand);
+	for await (const tab of activeTabs) {
+
+		const focusGroupCommand = await utilities.getfocusGroupCommand(tab.group.viewColumn);
+		await vscode.commands.executeCommand(focusGroupCommand);
+
+		const activeTabIndex = tab.group.tabs.findIndex(tab => tab.isActive);
+		await vscode.commands.executeCommand('workbench.action.openEditorAtIndex', [activeTabIndex]);
+
+		let showOptions: vscode.TextDocumentShowOptions =  { viewColumn: tab.group.viewColumn, preserveFocus: false, preview: tab.isPreview };
+		// await vscode.window.showTextDocument(tab.input?.uri, showOptions);  // need this, just commented because of the uri problem
+	}
+}
+
+
+// TODO if active group closed set activeGroupColumn to previous
+async function restoreActiveGroup(activeGroupColumn: number) {
+	const focusGroupCommand = await utilities.getfocusGroupCommand(activeGroupColumn);
+	await vscode.commands.executeCommand(focusGroupCommand);
+}
